@@ -3,6 +3,7 @@ import { Server } from 'socket.io'
 
 var gIo = null
 var connectedUsers = {}
+var mentorId
 
 export function setupSocketAPI(http) {
     gIo = new Server(http, {
@@ -28,6 +29,12 @@ export function setupSocketAPI(http) {
 
                 logger.info(`Socket disconnected [id: ${socket.id}] from block ${block}`)
             }
+
+            // if (mentorId === socket.id) {
+            //     console.log('mentorId', mentorId)
+            //     socket.emit('is-mentor', true)
+
+            // }
         })
 
         socket.on('set-block', block => {
@@ -46,6 +53,15 @@ export function setupSocketAPI(http) {
 
             if (!connectedUsers[socket.myBlock]) connectedUsers[socket.myBlock] = []
             connectedUsers[socket.myBlock].push(socket.id)
+
+            // the first person comes into the room
+            if (connectedUsers[socket.myBlock].length === 1) {
+                mentorId = socket.id
+            } else {
+                socket.emit('is-mentor', false)
+            }
+            // else if (mentorId === socket.id) { // if the socket thats connect is the mentor
+            //     socket.emit('is-mentor', true)
             // checking how many users are connected
             gIo.to(block).emit('connected-users-count', connectedUsers[socket.myBlock].length)
         })
@@ -55,12 +71,20 @@ export function setupSocketAPI(http) {
                 removeUserFromBlock(socket, block)
                 delete socket.myBlock
             }
+
+            if (mentorId === socket.id) {
+                connectedUsers[block].forEach(userId => {
+                    gIo.to(userId).emit('mentor-leave', 'Mentor has left the block. You are being redirected.')
+                })
+                connectedUsers[block] = []
+                mentorId = ''
+            }
+
         })
 
 
         //////////// 
 
-        // socket.emit('is-mentor', )
 
 
 
