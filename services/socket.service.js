@@ -29,12 +29,6 @@ export function setupSocketAPI(http) {
 
                 logger.info(`Socket disconnected [id: ${socket.id}] from block ${block}`)
             }
-
-            // if (mentorId === socket.id) {
-            //     console.log('mentorId', mentorId)
-            //     socket.emit('is-mentor', true)
-
-            // }
         })
 
         socket.on('set-block', block => {
@@ -87,6 +81,7 @@ export function setupSocketAPI(http) {
             socket.broadcast.to(socket.myBlock).emit('code-block-add', value)
             logger.info(`Block updated from socket [id:${socket.id}]`)
         })
+
         socket.on('write-output', value => {
             socket.broadcast.to(socket.myBlock).emit('add-output', value)
             logger.info(`Block updated from socket [id:${socket.id}]`)
@@ -111,10 +106,12 @@ export function setupSocketAPI(http) {
             logger.info(`user-watch from socket [id: ${socket.id}], on user ${userId}`)
             socket.join('watching:' + userId)
         })
+
         socket.on('set-user-socket', userId => {
             logger.info(`Setting socket.userId = ${userId} for socket [id: ${socket.id}]`)
             socket.userId = userId
         })
+
         socket.on('unset-user-socket', () => {
             logger.info(`Removing socket.userId for socket [id: ${socket.id}]`)
             delete socket.userId
