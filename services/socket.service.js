@@ -2,6 +2,7 @@ import { logger } from './logger.service.js'
 import { Server } from 'socket.io'
 
 var gIo = null
+var connectedUsers = {}
 
 export function setupSocketAPI(http) {
     gIo = new Server(http, {
@@ -9,20 +10,60 @@ export function setupSocketAPI(http) {
             origin: '*',
         }
     })
+
+    ////////// REUT
+
     gIo.on('connection', socket => {
+
         logger.info(`New connected socket [id: ${socket.id}]`)
-        socket.on('disconnect', socket => {
-            logger.info(`Socket disconnected [id: ${socket.id}]`)
-        })
-        socket.on('chat-set-topic', topic => {
-            if (socket.myTopic === topic) return
-            if (socket.myTopic) {
-                socket.leave(socket.myTopic)
-                logger.info(`Socket is leaving topic ${socket.myTopic} [id: ${socket.id}]`)
+
+        socket.on('disconnect', () => {
+            // when the page refresh it is diconnecting and this code removes the socket so it wont double added
+            const block = socket.myBlock
+            if (block && connectedUsers[block]) {
+                connectedUsers[block] = connectedUsers[block].filter(userId => userId !== socket.id)
+                console.log('connectedUsers when disconnect', connectedUsers[block]);
+
+                gIo.to(block).emit('connected-users-count', connectedUsers[block].length)
+
+                logger.info(`Socket disconnected [id: ${socket.id}] from block ${block}`)
             }
-            socket.join(topic)
-            socket.myTopic = topic
         })
+
+        socket.on('set-block', block => {
+            console.log('set-block')
+
+            if (socket.myBlock === block) return
+
+            // if the socket has block so i want to disconnect it and then join it
+            if (socket.myBlock) {
+                const oldBlock = socket.myBlock
+                removeUserFromBlock(socket, oldBlock)
+            }
+
+            socket.join(block)
+            socket.myBlock = block
+
+            if (!connectedUsers[socket.myBlock]) connectedUsers[socket.myBlock] = []
+            connectedUsers[socket.myBlock].push(socket.id)
+            // checking how many users are connected
+            gIo.to(block).emit('connected-users-count', connectedUsers[socket.myBlock].length)
+        })
+
+        socket.on('leave-block', block => {
+            if (socket.myBlock === block) {
+                removeUserFromBlock(socket, block)
+                delete socket.myBlock
+            }
+        })
+
+
+        //////////// 
+
+        // socket.emit('is-mentor', )
+
+
+
         socket.on('chat-send-msg', msg => {
             logger.info(`New chat msg from socket [id: ${socket.id}], emitting to topic ${socket.myTopic}`)
             // emits to all sockets:
@@ -46,6 +87,18 @@ export function setupSocketAPI(http) {
 
     })
 }
+
+//////// REUT
+function removeUserFromBlock(socket, block) {
+    socket.leave(block)
+    if (connectedUsers[block]) {
+        connectedUsers[block] = connectedUsers[block].filter(userId => userId !== socket.id)
+        gIo.to(block).emit('connected-users-count', connectedUsers[block]?.length || 0)
+        logger.info(`Socket [id: ${socket.id}] left block ${block}`)
+    }
+}
+
+////////
 
 function emitTo({ type, data, label }) {
     if (label) gIo.to('watching:' + label.toString()).emit(type, data)
