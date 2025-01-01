@@ -4,6 +4,7 @@ import { Server } from 'socket.io'
 var gIo = null
 var connectedUsers = {}
 var mentorId
+var blockValue = {}
 
 export function setupSocketAPI(http) {
     gIo = new Server(http, {
@@ -58,6 +59,9 @@ export function setupSocketAPI(http) {
             // else if (mentorId === socket.id) { // if the socket thats connect is the mentor
             //     socket.emit('is-mentor', true)
             // checking how many users are connected
+            if (blockValue[socket.myBlock]) {
+                socket.broadcast.to(socket.myBlock).emit('code-block-add', blockValue[socket.myBlock])
+            }
             gIo.to(block).emit('connected-users-count', connectedUsers[socket.myBlock].length)
         })
 
@@ -72,13 +76,15 @@ export function setupSocketAPI(http) {
                     gIo.to(userId).emit('mentor-leave', 'Mentor has left the block. You are being redirected.')
                 })
                 connectedUsers[block] = []
+                blockValue[block] = ''
                 mentorId = ''
             }
 
         })
 
         socket.on('code-block-write', value => {
-            socket.broadcast.to(socket.myBlock).emit('code-block-add', value)
+            blockValue[socket.myBlock] = value
+            socket.broadcast.to(socket.myBlock).emit('code-block-add', blockValue[socket.myBlock])
             logger.info(`Block updated from socket [id:${socket.id}]`)
         })
 
