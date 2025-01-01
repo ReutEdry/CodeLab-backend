@@ -4,7 +4,7 @@
 
 This application enables seamless collaboration between users in real-time. Mentors can monitor students as they write code. Using web sockets and a live code editor, the app creates an interactive and engaging learning environment for both mentors and students.
 
-check out the project in this link:
+Check out the project in this link:
 https://code-lab-r5ru.onrender.com
 
 # Features
